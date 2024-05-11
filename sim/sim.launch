@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="gui" default="true"/>
+    <arg name="debug" default="false"/>
+    <arg name="verbose" default="false"/>
+    <arg name="paused" default="false"/>
+    <arg name="respawn_gazebo" default="false"/>
+    <arg name="ID" value="0"/>
+    <arg name="fcu_url" default="udp://:14540@localhost:14580"/>
+    <arg name="world"/>
+    <arg name="vehicle"/>
+    <arg name="vehicle_sdf"/>
+    <arg name="vehicle_x"/>
+    <arg name="vehicle_y"/>
+    <arg name="vehicle_z"/>
+    <arg name="vehicle_R"/>
+    <arg name="vehicle_P"/>
+    <arg name="vehicle_Y"/>
+    <arg name="px4_estimator" default="ekf2"/>
+    <arg name="offboard_control_camera_matrix"/>
+    <arg name="offboard_control_distortion_coefficients" default="0,0,0,0"/>
+    <arg name="offboard_control_search_altitude" default="10"/>
+    <arg name="offboard_control_mavros_node_name" value="mavros"/>
+    <arg name="offboard_control_mavlink_node_name" value="mavlink"/>
+    <arg name="offboard_control_bottom_camera_node_name"/>
+    <!-- The required broadcast rate depends on the landing speed and desired accuracy; start with rates between 10 Hz and 50 Hz and tune performance as needed. -->
+    <arg name="offboard_control_land_on_aruco_rate" default="20"/>
+    <arg name="offboard_control_aruco_markers" default=""/>
+
+    <env name="PX4_SIM_MODEL" value="$(arg vehicle)" />
+    <env name="PX4_ESTIMATOR" value="$(arg px4_estimator)" />
+    <env name="MAVLINK20" value="1" />
+
+    <!--<param name="PLD_SRCH_ALT" value="2.0" />-->
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="world_name" value="$(arg world)"/>
+        <arg name="debug" value="$(arg debug)"/>
+        <arg name="verbose" value="$(arg verbose)"/>
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
+    </include>
+
+    <include file="$(find mavros)/launch/px4.launch">
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+        <arg name="gcs_url" value=""/>
+        <arg name="tgt_system" value="$(eval 1 + arg('ID'))"/>
+        <arg name="tgt_component" value="1"/>
+    </include>
+
+    <node name="$(anon vehicle_spawn)" pkg="gazebo_ros" type="spawn_model" output="screen" args="-sdf -file $(arg vehicle_sdf) -model $(arg vehicle) -x $(arg vehicle_x) -y $(arg vehicle_y) -z $(arg vehicle_z) -R $(arg vehicle_R) -P $(arg vehicle_P) -Y $(arg vehicle_Y)"/>
+    <node name="sitl" pkg="px4" type="px4" output="screen" required="true"/>
+    <node pkg="offboard_control" type="__main__.py" name="offboard_control" output="screen" args="precland --distortion-coefficients=$(arg offboard_control_distortion_coefficients) --search-altitude=$(arg offboard_control_search_altitude) --mavros-node-name=$(arg offboard_control_mavros_node_name) --mavlink-node-name=$(arg offboard_control_mavlink_node_name) --land-on-aruco-rate=$(arg offboard_control_land_on_aruco_rate) $(arg offboard_control_camera_matrix) $(arg offboard_control_bottom_camera_node_name) $(arg offboard_control_aruco_markers)" required="true"></node>
+</launch>
